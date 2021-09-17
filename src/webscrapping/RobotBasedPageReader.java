@@ -115,24 +115,24 @@ public class RobotBasedPageReader {
 		r.keyRelease(KeyEvent.VK_CONTROL);
 	}
 
-	public static String getFullPageAsHtml(String page) {
+	public static synchronized String getFullPageAsHtml(String page) {
 		try {
 			
 			clickOnChrome();
 			writeAddressAndLoadPage(page);
-			Thread.sleep(2000);
+			Thread.sleep(1000);
 			
 			r.keyPress(KeyEvent.VK_CONTROL);
 			r.keyPress(KeyEvent.VK_U);
 
-			Thread.sleep(500);
+			Thread.sleep(300);
 
 			r.keyRelease(KeyEvent.VK_U);
 			r.keyRelease(KeyEvent.VK_CONTROL);
-			Thread.sleep(500);
+			Thread.sleep(1000);
 
 			String res = copyPasteWholePage(r);
-			Thread.sleep(500);
+			Thread.sleep(300);
 
 			closePage();
 
