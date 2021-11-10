@@ -24,6 +24,10 @@ public class RobotBasedPageReader {
 	public static void clickOnChrome() {
 		clickOn(50, 50);
 	}
+	public static void clickOnChromeInsidePage() {
+		clickOn(50, 150);
+	}
+	
 	
 	public static void clickOn(int x, int y) {
 		r.mouseMove(x,y);
@@ -32,8 +36,17 @@ public class RobotBasedPageReader {
 	}	
 	
 	
-	public static String copyPasteWholePage(Robot r)
+	public static String getFullPageAsText(Robot r)
 	{
+		clickOnChromeInsidePage();
+		
+		try {
+			Thread.sleep(100);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
 		r.keyPress(KeyEvent.VK_CONTROL);
 		r.keyPress(KeyEvent.VK_A);
 		try {
@@ -64,14 +77,10 @@ public class RobotBasedPageReader {
 					.getSystemClipboard().getData(DataFlavor.stringFlavor);
 		} catch(ExceptionInInitializerError | IllegalStateException e)
 		{
-			return copyPasteWholePage(r);
+			return getFullPageAsText(r);
 		}
 		catch (HeadlessException | UnsupportedFlavorException | IOException e) {
 			e.printStackTrace();
-		}
-		catch(Error e)
-		{
-			System.out.println("Catched error");
 		}
 		
 		throw new Error();
@@ -115,24 +124,24 @@ public class RobotBasedPageReader {
 		r.keyRelease(KeyEvent.VK_CONTROL);
 	}
 
-	public static synchronized String getFullPageAsHtml(String page) {
+	public static synchronized String getFullPageAsHtml(String page, double processingSpeedFactor) {
 		try {
 			
 			clickOnChrome();
 			writeAddressAndLoadPage(page);
-			Thread.sleep(1000);
+			Thread.sleep((int)(1000*processingSpeedFactor));
 			
 			r.keyPress(KeyEvent.VK_CONTROL);
 			r.keyPress(KeyEvent.VK_U);
 
-			Thread.sleep(300);
+			Thread.sleep((int)(300*processingSpeedFactor));
 
 			r.keyRelease(KeyEvent.VK_U);
 			r.keyRelease(KeyEvent.VK_CONTROL);
-			Thread.sleep(1000);
+			Thread.sleep((int)(1000*processingSpeedFactor));
 
-			String res = copyPasteWholePage(r);
-			Thread.sleep(300);
+			String res = getFullPageAsText(r);
+			Thread.sleep((int)(300*processingSpeedFactor));
 
 			closePage();
 
@@ -144,9 +153,7 @@ public class RobotBasedPageReader {
 			e.printStackTrace();
 		}
 		
-		throw new Error();
-		
-		
+		throw new Error();	
 	}
 
 	public static void closePage() {
@@ -257,6 +264,46 @@ public class RobotBasedPageReader {
 		
 		
 		System.out.println("Pasted");
+	}
+	
+	public static void clearAndTypeString(Robot r, String string) throws InterruptedException {
+		r.keyPress(KeyEvent.VK_CONTROL);
+		r.keyPress(KeyEvent.VK_A);
+		
+		Thread.sleep(100);
+		r.keyRelease(KeyEvent.VK_A);
+		r.keyRelease(KeyEvent.VK_CONTROL);
+		Thread.sleep(100);
+		r.keyPress(KeyEvent.VK_DELETE);
+		r.keyRelease(KeyEvent.VK_DELETE);
+		Thread.sleep(100);
+		
+		typeString(r,string);
+		
+	}
+	public static void typeString(Robot r2, String string) {
+		while(!string.isEmpty())
+		{
+			char c = string.charAt(0);
+			int code = java.awt.event.KeyEvent.getExtendedKeyCodeForChar(c);
+			
+			boolean isShiftActive = Character.isUpperCase(c)||c=='('||c==')'|| c==':';
+			if(isShiftActive)r.keyPress(KeyEvent.VK_SHIFT);
+			
+			if(c=='(') code = KeyEvent.VK_9;
+			
+			if(c==')')
+				code = KeyEvent.VK_0;
+			
+			if(c=='"') code = KeyEvent.VK_SEMICOLON;
+			
+			r.keyPress(code);
+			r.keyRelease(code);
+			
+			if(isShiftActive) r.keyRelease(KeyEvent.VK_SHIFT);
+			string = string.substring(1);
+	
+		}
 	}
 
 
