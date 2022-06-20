@@ -19,43 +19,60 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.logging.Level;
 
 import com.gargoylesoftware.htmlunit.WebClient;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 
+import cachingutils.impl.SplittedFileBasedCache;
+
 public class WebpageReader {
 
 	private static final Object lockOverloadRequests = "lockOverload";
 	private static WebClient webClient;
-	
+
 	private static Map<String, String> cache = new HashMap<>();
 	
-	public static String getWebclientWebPageContents(String webpage)
+	private static SplittedFileBasedCache<String, String> harddriveCache = SplittedFileBasedCache.newInstance(
+			x->urlToLocalFile(x), Function.identity(), Function.identity());
+	
+	public static class PageContentsResult{
+		public final String res;
+		public boolean fromCache;
+		private boolean isFailedToBeLoaded;
+		private PageContentsResult(String res, boolean fromCache) {
+			this.isFailedToBeLoaded = res.equals("NO_PAGE_TO_BE_SERVED");
+			this.res = res; this.fromCache = fromCache;}
+		public String getString() {
+			return res;
+		}
+		public boolean isFailed() {
+			return isFailedToBeLoaded;
+		}
+	}
+
+	public static PageContentsResult getWebclientWebPageContents(String webpage)
 	{
-		if(cache.containsKey(webpage))return cache.get(webpage);
-		/*File cacheFileName = getCacheFileFor(webpage);
-		if(cacheFileName.exists())
-			try {
-				return Files.readString(
-						getCacheFileFor(webpage).toPath(),
-						StandardCharsets.ISO_8859_1);
-			} catch (IOException e) {
-				e.printStackTrace();
-				throw new Error();
-			}
-		*/
+		if(cache.containsKey(webpage))//return cache.get(webpage);
+				return new PageContentsResult(cache.get(webpage), true);
+		if(harddriveCache.has(webpage)) {
+			cache.put(webpage, harddriveCache.get(webpage));
+			return //harddriveCache.get(webpage);
+					new PageContentsResult(harddriveCache.get(webpage), true);
+		}
+
 		synchronized(lockOverloadRequests) {
 			try {
-				Thread.sleep(250);
+				Thread.sleep(150);
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
 		}
-		System.out.println("Loading:"+webpage);
+		System.out.println("WebpageReader: loading from URL "+webpage);
 		String res = null;
 		res = getPageContentsWebClient(webpage);
-		
+
 		/*BufferedWriter writer;
 		try {
 		//	System.out.println(cacheFileName.getAbsolutePath());
@@ -73,11 +90,16 @@ public class WebpageReader {
 
 		if(cache.size()>500)cache.clear();
 		cache.put(webpage, res);
-		return res;
+		harddriveCache.add(webpage, res);
+		return //res;
+				new PageContentsResult(res,false);
 	}
 
-	private static File getCacheFileFor(String webpage) {
-		return new File("data/cache/webscrapping/"+webpage.replaceAll(":", "").replaceAll("\\?", "").replaceAll("=", "")+".html");
+	private static File urlToLocalFile(String webpage) {
+		File res =
+		new File("../databases/discordforrad/caches/webscrapping/"+webpage.replaceAll(":", "").replaceAll("\\?", "").replaceAll("=", "")+".html");
+		
+		return res;
 	}
 
 	private synchronized static String getPageContentsWebClient(String webpage) {
@@ -98,7 +120,18 @@ public class WebpageReader {
 		}
 		catch(Exception e)
 		{
-			if(e.getCause().toString().equals("java.net.SocketException: Connection reset")||
+			e.printStackTrace();
+			if(e.toString().contains("404"))return "NO_PAGE_TO_BE_SERVED";
+			if(e.toString().contains("com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException: 502 Bad Gateway for")||
+					e.toString().contains("com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException: 522")||
+					e.toString().contains("com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException: 503")
+					)
+				return getPageContentsWebClient(webpage);
+				
+			if(
+					e.toString().contains("Attempted to refresh a page using an ImmediateRefreshHandler")||
+					e.toString().contains("504")||
+					e.getCause().toString().equals("java.net.SocketException: Connection reset")||
 					e.getCause().toString().equals("java.net.SocketTimeoutException: Read timed out")
 					||e.getCause().toString().endsWith("Connection timed out: no further information")
 					||e.getCause().toString().equals("java.net.NoRouteToHostException: No route to host: no further information")
@@ -136,13 +169,13 @@ public class WebpageReader {
 			String res = "";
 			while ((line = readr.readLine()) != null) 
 			{
-			//	res+=String.Utf8ToIso(line)+"\n";
+				//	res+=String.Utf8ToIso(line)+"\n";
 				res+=line+"\n";
 			}
 
 
 			readr.close();
-		//	System.out.println(res);
+			//	System.out.println(res);
 			return res;
 		}
 
@@ -157,8 +190,7 @@ public class WebpageReader {
 		throw new Error();
 	}
 
-	public static void downloadFileFrom(String uRL, String string) {
-		File outputFile = new File(string);
+	public static void downloadFileFrom(String uRL, File outputFile) {
 		URL u;
 		try {
 			u = URI.create(uRL).toURL();
@@ -178,5 +210,13 @@ public class WebpageReader {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+	}
+
+	public static PageContentsResult getWebclientWebPageContents(String last, boolean purgeEntry) {
+		if(purgeEntry)
+			{harddriveCache.delete(last);
+			cache.remove(last);
+			}
+		return getWebclientWebPageContents(last);
 	}
 }
