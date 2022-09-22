@@ -136,7 +136,7 @@ public class RobotUtils {
 		r.keyRelease(KeyEvent.VK_DELETE);
 		Thread.sleep(100);
 		
-		typeString(r,string);
+		typeString(string);
 		
 	}
 

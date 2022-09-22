@@ -1,26 +1,27 @@
 package webscrapping;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
-import java.net.URLConnection;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
 
 import com.gargoylesoftware.htmlunit.WebClient;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
@@ -52,6 +53,10 @@ public class WebpageReader {
 		}
 	}
 
+	public static PageContentsResult getWebclientWebPageContents(URL webpage)
+	{
+		return getWebclientWebPageContents(webpage.toString());
+	}
 	public static PageContentsResult getWebclientWebPageContents(String webpage)
 	{
 		if(cache.containsKey(webpage))//return cache.get(webpage);
@@ -218,5 +223,31 @@ public class WebpageReader {
 			cache.remove(last);
 			}
 		return getWebclientWebPageContents(last);
+	}
+
+	public static Set<URL> getAllUrlsFrom(URL url) throws MalformedURLException {
+		PageContentsResult res = getWebclientWebPageContents(url);
+		
+		return getAllUrlsFrom(res.getString(),url);
+		
+	}
+	public static Set<URL> getAllUrlsFrom(String res, URL url) throws MalformedURLException {
+		List<String> allHref = new ArrayList<>();
+		allHref.addAll(Arrays.asList(res.split("href=")));
+		allHref.remove(0);
+
+		String hostTemplate = url.getProtocol()+"://"+url.getHost();
+		Set<String> allStrings = allHref.stream().map(x->x.substring(x.indexOf("\"")+1)) 
+				.map(x->x.substring(0,x.indexOf("\"")).trim())
+				.map(x->{
+					if(!x.startsWith("https://"))
+						return hostTemplate+x;
+					return x;
+					})
+				.collect(Collectors.toSet());
+		
+		Set<URL> res2 = new HashSet<>();
+		for(String s:allStrings) res2.add(new URL(s));
+		return res2;
 	}
 }
